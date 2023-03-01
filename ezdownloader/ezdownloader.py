@@ -1,58 +1,59 @@
-import argparse
 import os
-from urllib.request import urlretrieve
 import sys
+import requests
+from urllib.parse import urlparse
+from pathlib import Path
+from tqdm import tqdm
+import argparse
 
 
-def download(url, filename=None, path=None, overwrite=False):
-    def progress(count, block_size, total_size):
-        percent = int(count * block_size * 100 / total_size)
-        sys.stdout.write(f"\rDownloading {filename}: [{percent:>3}%] ")
-        sys.stdout.flush()
+def download(url, filename='', path='', overwrite=False):
+    if not url.startswith('http'):
+        url = f'https://{url}'
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+    except requests.exceptions.RequestException:
+        print('Invalid URL or connection error.')
+        sys.exit()
 
-    if path is None:
-        path = os.getcwd()
+    if not filename:
+        filename = os.path.basename(urlparse(url).path)
+    filepath = os.path.join(path, filename) if path else filename
 
-    if filename is None:
-        filename = url.split('/')[-1]
+    if os.path.exists(filepath):
+        if not overwrite:
+            response.close()
+            print('File already exists. Aborting download.')
+            sys.exit()
+        else:
+            choice = input('File already exists. Overwrite? [y/n]: ')
+            if choice.lower() != 'y':
+                response.close()
+                print('Aborting download.')
+                sys.exit()
 
-    full_path = os.path.join(path, filename)
-
-    if os.path.isfile(full_path) and not overwrite:
-        response = input(
-            f"File '{full_path}' already exists. Overwrite? [y/n] ")
-        if response.lower() != 'y':
-            print("Download canceled.")
-            return None
-
-    if not os.path.isdir(path):
-        os.makedirs(path)
-
-    urlretrieve(url, full_path, progress)
-    return full_path
-
+    print(f'Downloading {filename}...')
+    total_size = int(response.headers.get('content-length', 0))
+    block_size = 1024
+    progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True)
+    with open(filepath, 'wb') as f:
+        for data in response.iter_content(block_size):
+            progress_bar.update(len(data))
+            f.write(data)
+    progress_bar.close()
+    return filepath
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('url', help='the URL of the file to download')
-    parser.add_argument('-f', '--filename',
-                        help='the name of the file to save as')
+    parser = argparse.ArgumentParser(description='Download a file from a URL.')
+    parser.add_argument('url', help='The URL of the file to download')
     parser.add_argument(
-        '-p', '--path', help='the directory to save the file in')
-    parser.add_argument('-o', '--overwrite',
-                        action='store_true', help='overwrite existing files')
+        '--filename', '-f', help='The name to save the file as (defaults to the name from the URL)')
+    parser.add_argument(
+        '--path', '-p', help='The directory to save the file in (defaults to the current working directory)')
+    parser.add_argument('--overwrite', '-o', action='store_true',
+                        help='Whether to overwrite an existing file with the same name (defaults to False)')
     args = parser.parse_args()
+    filename = download(args.url, args.filename, args.path, args.overwrite)
 
-    filename = args.filename
-    if filename is not None and isinstance(filename, str):
-        filename += str(args.url)
-
-    path = args.path
-    if path is not None and not os.path.isdir(path):
-        print(f"Invalid path: {path}")
-        return
-
-    full_path = download(args.url, filename, path, args.overwrite)
-
-    if full_path is not None:
-        print(f"File '{full_path}' downloaded successfully.")
+    print(f"File '{filename}' downloaded successfully.")
