@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ezdownloader',
-    version='0.1.1',
+    version='0.1.2',
     description = 'A simple file downloading tool ',
     author = 'codemilo',
     author_email = 'milomurthy@gmail.com',

@@ -1,6 +1,7 @@
 import os
 import sys
 import requests
+from urllib.parse import urlparse
 from tqdm import tqdm
 from termcolor import colored
 import argparse
@@ -16,9 +17,10 @@ def download(url, filename='', path='', overwrite=False):
         sys.exit()
 
     if not filename:
-        filename = url.split('/')[-1]
+        filename = os.path.basename(urlparse(url).path)
 
-    filepath = os.path.join(path, filename)
+    filepath = os.path.join(path, filename) if path else filename
+
     if os.path.exists(filepath):
         if not overwrite:
             response.close()
@@ -31,7 +33,7 @@ def download(url, filename='', path='', overwrite=False):
                 print(colored('Aborting download.', 'yellow'))
                 sys.exit()
 
-    print(colored(f'Downloading {filename}...', 'green'))
+    print(colored(f'Downloading {filename}...', 'blue'))
     total_size = int(response.headers.get('content-length', 0))
     block_size = 1024
     progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True)
@@ -44,6 +46,7 @@ def download(url, filename='', path='', overwrite=False):
     print(colored(f'Download complete: {filename}', 'green'))
     return filename
 
+
 def main():
     parser = argparse.ArgumentParser(description='Download a file from a URL.')
     parser.add_argument('url', help='The URL of the file to download')
@@ -55,5 +58,3 @@ def main():
                         help='Whether to overwrite an existing file with the same name (defaults to False)')
     args = parser.parse_args()
     filename = download(args.url, args.filename, args.path, args.overwrite)
-
-    print(f"File '{filename}' downloaded successfully.")
