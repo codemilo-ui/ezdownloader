@@ -1,11 +1,9 @@
 import os
 import sys
 import requests
-from urllib.parse import urlparse
-from pathlib import Path
 from tqdm import tqdm
+from termcolor import colored
 import argparse
-
 
 def download(url, filename='', path='', overwrite=False):
     if not url.startswith('http'):
@@ -14,26 +12,26 @@ def download(url, filename='', path='', overwrite=False):
         response = requests.get(url, stream=True)
         response.raise_for_status()
     except requests.exceptions.RequestException:
-        print('Invalid URL or connection error.')
+        print(colored('Invalid URL or connection error.', 'red'))
         sys.exit()
 
     if not filename:
-        filename = os.path.basename(urlparse(url).path)
-    filepath = os.path.join(path, filename) if path else filename
+        filename = url.split('/')[-1]
 
+    filepath = os.path.join(path, filename)
     if os.path.exists(filepath):
         if not overwrite:
             response.close()
-            print('File already exists. Aborting download.')
+            print(colored('File already exists. Aborting download.', 'yellow'))
             sys.exit()
         else:
-            choice = input('File already exists. Overwrite? [y/n]: ')
+            choice = input(colored('File already exists. Overwrite? [y/n]: ', 'yellow'))
             if choice.lower() != 'y':
                 response.close()
-                print('Aborting download.')
+                print(colored('Aborting download.', 'yellow'))
                 sys.exit()
 
-    print(f'Downloading {filename}...')
+    print(colored(f'Downloading {filename}...', 'green'))
     total_size = int(response.headers.get('content-length', 0))
     block_size = 1024
     progress_bar = tqdm(total=total_size, unit='iB', unit_scale=True)
@@ -42,7 +40,9 @@ def download(url, filename='', path='', overwrite=False):
             progress_bar.update(len(data))
             f.write(data)
     progress_bar.close()
-    return filepath
+
+    print(colored(f'Download complete: {filename}', 'green'))
+    return filename
 
 def main():
     parser = argparse.ArgumentParser(description='Download a file from a URL.')

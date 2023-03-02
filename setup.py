@@ -11,7 +11,8 @@ setup(
     keywords = ['downloader', 'wget'],
     install_requires=[
         'urllib3',
-        'tqdm'
+        'tqdm',
+        'termcolor'
     ],
     entry_points={
         'console_scripts': [
